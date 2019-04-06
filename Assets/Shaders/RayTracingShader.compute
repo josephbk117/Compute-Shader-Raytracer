@@ -1,4 +1,5 @@
 ﻿#pragma kernel CSMain
+
 RWTexture2D<float4> Result;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
@@ -7,6 +8,15 @@ SamplerState sampler_SkyboxTexture;
 float2 _PixelOffset;
 float4 _DirectionalLight;
 static const float PI = 3.14159265f;
+
+struct Sphere
+{
+    float3 position;
+    float radius;
+    float3 albedo;
+    float3 specular;
+};
+StructuredBuffer<Sphere> _Spheres;
 
 struct Ray
 {
@@ -42,6 +52,8 @@ struct RayHit
     float3 position;
     float distance;
     float3 normal;
+	float3 albedo;
+	float3 specular;
 };
 RayHit CreateRayHit()
 {
@@ -61,6 +73,8 @@ void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
         bestHit.distance = t;
         bestHit.position = ray.origin + t * ray.direction;
         bestHit.normal = float3(0.0f, 1.0f, 0.0f);
+		bestHit.albedo = float3(0.7, 0.8, 0.9);
+		bestHit.specular = float3(0,0,0);
     }
 }
 RayHit Trace(Ray ray);
@@ -96,12 +110,12 @@ float3 Shade(inout Ray ray, RayHit hit)
     }
 }
 
-void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere)
+void IntersectSphere(Ray ray, inout RayHit bestHit, Sphere sphere)
 {
     // Calculate distance along the ray where the sphere is intersected
-    float3 d = ray.origin - sphere.xyz;
+    float3 d = ray.origin - sphere.position;
     float p1 = -dot(ray.direction, d);
-    float p2sqr = p1 * p1 - dot(d, d) + sphere.w * sphere.w;
+    float p2sqr = p1 * p1 - dot(d, d) + sphere.radius * sphere.radius;
     if (p2sqr < 0)
         return;
     float p2 = sqrt(p2sqr);
@@ -110,7 +124,9 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere)
     {
         bestHit.distance = t;
         bestHit.position = ray.origin + t * ray.direction;
-        bestHit.normal = normalize(bestHit.position - sphere.xyz);
+        bestHit.normal = normalize(bestHit.position - sphere.position);
+        bestHit.albedo = sphere.albedo;
+        bestHit.specular = sphere.specular;
     }
 }
 
@@ -118,13 +134,11 @@ RayHit Trace(Ray ray)
 {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-	for(int i=-5;i<5;i++)
-	{
-		for(int j=-5;j<5;j++)
-		{
-			IntersectSphere(ray, bestHit, float4(i*3, 1.0f, j*3, 1.0f));
-		}
-	}
+	// Trace spheres
+    uint numSpheres, stride;
+    _Spheres.GetDimensions(numSpheres, stride);
+    for (uint i = 0; i < numSpheres; i++)
+        IntersectSphere(ray, bestHit, _Spheres[i]);
     return bestHit;
 }
 

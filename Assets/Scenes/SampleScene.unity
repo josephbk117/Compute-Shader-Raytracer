@@ -271,3 +271,6 @@ MonoBehaviour:
   RayTracingShader: {fileID: 7200000, guid: 6adde2f6f6beee940be0195762247cd7, type: 3}
   SkyboxTexture: {fileID: 2800000, guid: 015902a11a8040f4b8493a0c7c43ef7a, type: 3}
   DirectionalLight: {fileID: 170076734}
+  SphereRadius: {x: 3, y: 8}
+  SpheresMax: 300
+  SpherePlacementRadius: 50
