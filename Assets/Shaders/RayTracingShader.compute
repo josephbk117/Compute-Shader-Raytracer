@@ -5,6 +5,7 @@ float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyboxTexture;
 SamplerState sampler_SkyboxTexture;
 float2 _PixelOffset;
+float4 _DirectionalLight;
 static const float PI = 3.14159265f;
 
 struct Ray
@@ -62,18 +63,27 @@ void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
         bestHit.normal = float3(0.0f, 1.0f, 0.0f);
     }
 }
-
+RayHit Trace(Ray ray);
 float3 Shade(inout Ray ray, RayHit hit)
 {
     if (hit.distance < 1.#INF)
     {
-        float3 specular = float3(0.6f, 0.6f, 0.6f);
+        float3 specular = float3(0.15f, 0.15f, 0.15f);
+		float3 albedo = float3(0.8f, 0.8f, 0.8f);
         // Reflect the ray and multiply energy with specular reflection
         ray.origin = hit.position + hit.normal * 0.001f;
         ray.direction = reflect(ray.direction, hit.normal);
         ray.energy *= specular;
-        // Return nothing
-        return float3(0.0f, 0.0f, 0.0f);
+		// Shadow test ray
+		bool shadow = false;
+		Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirectionalLight.xyz);
+		RayHit shadowHit = Trace(shadowRay);
+		if (shadowHit.distance != 1.#INF)
+		{
+			return float3(0.0f, 0.0f, 0.0f);
+		}
+        // Return a diffuse-shaded color
+		return saturate(dot(hit.normal, _DirectionalLight.xyz) * -1) * _DirectionalLight.w * albedo;
     }
     else
     {
@@ -108,11 +118,11 @@ RayHit Trace(Ray ray)
 {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-	for(int i=-10;i<10;i++)
+	for(int i=-5;i<5;i++)
 	{
 		for(int j=-5;j<5;j++)
 		{
-			IntersectSphere(ray, bestHit, float4(i*2, 3.0f, j*2, 1.0f));
+			IntersectSphere(ray, bestHit, float4(i*3, 1.0f, j*3, 1.0f));
 		}
 	}
     return bestHit;
@@ -130,7 +140,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(uv);
     // Trace and shade
     float3 result = float3(0, 0, 0);
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 4; i++)
     {
         RayHit hit = Trace(ray);
         result += ray.energy * Shade(ray, hit);
