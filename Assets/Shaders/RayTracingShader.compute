@@ -82,8 +82,8 @@ float3 Shade(inout Ray ray, RayHit hit)
 {
     if (hit.distance < 1.#INF)
     {
-        float3 specular = float3(0.15f, 0.15f, 0.15f);
-		float3 albedo = float3(0.8f, 0.8f, 0.8f);
+        float3 specular = hit.specular;
+		float3 albedo = hit.albedo;
         // Reflect the ray and multiply energy with specular reflection
         ray.origin = hit.position + hit.normal * 0.001f;
         ray.direction = reflect(ray.direction, hit.normal);
@@ -154,7 +154,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     Ray ray = CreateCameraRay(uv);
     // Trace and shade
     float3 result = float3(0, 0, 0);
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 10; i++)
     {
         RayHit hit = Trace(ray);
         result += ray.energy * Shade(ray, hit);
